@@ -1,9 +1,7 @@
 name: Build Windows Artifacts
 on:
-  push:
+  pull_request:
     branches:
-      - linux-build-fixes
-      - main
       - master
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
