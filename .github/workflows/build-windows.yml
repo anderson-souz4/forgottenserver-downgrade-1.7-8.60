@@ -30,10 +30,23 @@ jobs:
       - name: Build
         shell: pwsh
         run: cmake --build --preset vcpkg -j 2
+      - name: Prepare artifact (exe + DLLs)
+        shell: pwsh
+        run: |
+          $workspace = "$env:GITHUB_WORKSPACE"
+          $dist = Join-Path $workspace "dist/windows-release"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          $candidates = @(
+            Join-Path $workspace "build/tfs.exe",
+            Join-Path $workspace "build/Release/tfs.exe"
+          )
+          foreach ($c in $candidates) { if (Test-Path $c) { Copy-Item $c -Destination $dist -Force } }
+          $dllRelease = Join-Path $workspace "build/vcpkg_installed/x64-windows/bin/*.dll"
+          if (Test-Path (Split-Path $dllRelease)) { Copy-Item $dllRelease -Destination $dist -Force -ErrorAction SilentlyContinue }
+          $dllDebug = Join-Path $workspace "build/vcpkg_installed/x64-windows/debug/bin/*.dll"
+          if (Test-Path (Split-Path $dllDebug)) { Copy-Item $dllDebug -Destination $dist -Force -ErrorAction SilentlyContinue }
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfs-windows
-          path: |
-            build/tfs.exe
-            build/Release/tfs.exe
+          path: dist/windows-release
