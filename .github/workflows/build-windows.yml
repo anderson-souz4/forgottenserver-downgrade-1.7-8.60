@@ -1,0 +1,37 @@
+name: Build Windows Artifacts
+on:
+  push:
+    branches:
+      - linux-build-fixes
+      - main
+      - master
+  pull_request:
+    branches:
+      - '**'
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+      - name: Setup vcpkg
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$env:GITHUB_WORKSPACE/vcpkg"
+          & "$env:GITHUB_WORKSPACE/vcpkg/bootstrap-vcpkg.bat"
+      - name: Configure
+        shell: pwsh
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+          CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake
+        run: cmake -D CMAKE_BUILD_TYPE=Release --preset vcpkg
+      - name: Build
+        shell: pwsh
+        run: cmake --build --preset vcpkg -j 2
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfs-windows
+          path: build/tfs.exe
