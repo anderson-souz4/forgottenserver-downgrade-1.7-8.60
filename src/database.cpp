@@ -36,10 +36,12 @@ retry:
 		mysql_options(handle.get(), MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &ssl_verify);
 	}
 #else
+#if defined(MYSQL_OPT_SSL_MODE) && defined(SSL_MODE_DISABLED)
 	{
 		unsigned int ssl_mode = SSL_MODE_DISABLED;
 		mysql_options(handle.get(), MYSQL_OPT_SSL_MODE, &ssl_mode);
 	}
+#endif
 #endif
 	
 	// connects to database

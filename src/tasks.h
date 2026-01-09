@@ -7,6 +7,13 @@
 
 #include "thread_holder_base.h"
 
+#include <functional>
+#include <chrono>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <semaphore>
+
 using TaskFunc = std::function<void(void)>;
 constexpr int DISPATCHER_TASK_EXPIRATION = 2000;
 
@@ -84,9 +91,34 @@ public:
 private:
 	std::mutex taskLock;
 
-	// C++20: binary_semaphore is more efficient than condition_variable
-	// No spurious wakeups - Lower overhead - Better performance under contention
-	std::binary_semaphore taskSignal{0};
+#if defined(__cpp_lib_semaphore)
+	using binary_semaphore_t = std::binary_semaphore;
+#else
+	class binary_semaphore_t {
+	public:
+		explicit binary_semaphore_t(unsigned int initial = 0) : signaled(initial > 0) {}
+		void release()
+		{
+			{
+				std::lock_guard<std::mutex> lk(m);
+				signaled = true;
+			}
+			cv.notify_one();
+		}
+		void acquire()
+		{
+			std::unique_lock<std::mutex> lk(m);
+			cv.wait(lk, [this] { return signaled; });
+			signaled = false;
+		}
+	private:
+		std::mutex m;
+		std::condition_variable cv;
+		bool signaled{false};
+	};
+#endif
+
+	binary_semaphore_t taskSignal{0};
 
 	std::vector<Task*> taskList;
 	uint64_t dispatcherCycle = 0;
